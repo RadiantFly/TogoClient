@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#0f172a" />
+    </linearGradient>
+    <linearGradient id="fur" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f8fafc" />
+      <stop offset="100%" stop-color="#cbd5e1" />
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="224" fill="url(#bg)" />
+  <path
+    d="M292 274c34-82 116-134 220-140 104 6 186 58 220 140l36 204c8 48-6 96-38 132-52 60-128 92-218 92s-166-32-218-92c-32-36-46-84-38-132z"
+    fill="#1e293b"
+  />
+  <path
+    d="M334 268c26-98 92-152 178-164-10 70-2 130 22 180-82-18-148-28-200-16z"
+    fill="#0f172a"
+  />
+  <path
+    d="M690 268c-26-98-92-152-178-164 10 70 2 130-22 180 82-18 148-28 200-16z"
+    fill="#0f172a"
+  />
+  <path
+    d="M332 494c0-118 80-210 180-210s180 92 180 210c0 134-74 230-180 230s-180-96-180-230z"
+    fill="url(#fur)"
+  />
+  <path
+    d="M512 280c58 0 110 22 144 76 10 16 18 34 24 54-62-24-114-34-168-34s-106 10-168 34c6-20 14-38 24-54 34-54 86-76 144-76z"
+    fill="#94a3b8"
+  />
+  <path
+    d="M408 470c0-44 30-80 68-80s68 36 68 80c0 76-32 132-68 132s-68-56-68-132z"
+    fill="#ffffff"
+    opacity="0.95"
+  />
+  <path
+    d="M480 390c38 0 68 36 68 80 0 76-32 132-68 132 22-34 34-78 34-132 0-26-10-56-34-80z"
+    fill="#e2e8f0"
+  />
+  <path
+    d="M480 470c0-44 30-80 68-80s68 36 68 80c0 76-32 132-68 132s-68-56-68-132z"
+    fill="#ffffff"
+    opacity="0.95"
+  />
+  <circle cx="444" cy="478" r="30" fill="#0f172a" />
+  <circle cx="580" cy="478" r="30" fill="#0f172a" />
+  <circle cx="434" cy="468" r="9" fill="#e0f2fe" />
+  <circle cx="570" cy="468" r="9" fill="#e0f2fe" />
+  <path
+    d="M512 528c40 0 74 20 94 56-32 34-58 52-94 52s-62-18-94-52c20-36 54-56 94-56z"
+    fill="#f8fafc"
+  />
+  <path
+    d="M468 546c12-18 28-28 44-28s32 10 44 28c-14 18-28 28-44 28s-30-10-44-28z"
+    fill="#111827"
+  />
+  <path
+    d="M512 548c12 0 22 8 22 18 0 16-10 30-22 30s-22-14-22-30c0-10 10-18 22-18z"
+    fill="#111827"
+  />
+  <path
+    d="M440 620c22 26 44 38 72 38s50-12 72-38"
+    stroke="#0f172a"
+    stroke-width="18"
+    stroke-linecap="round"
+    fill="none"
+  />
+  <path
+    d="M352 364l88 92"
+    stroke="#bfdbfe"
+    stroke-width="22"
+    stroke-linecap="round"
+    opacity="0.88"
+  />
+  <path
+    d="M672 364l-88 92"
+    stroke="#bfdbfe"
+    stroke-width="22"
+    stroke-linecap="round"
+    opacity="0.88"
+  />
+</svg>

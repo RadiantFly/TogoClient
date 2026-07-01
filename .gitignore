@@ -1,0 +1,26 @@
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+
+# Logs and local runtime data
+*.log
+dev_storage_root/
+
+# Editor
+.idea/
+.vscode/
+
+# Desktop app build outputs
+apps/desktop/node_modules/
+apps/desktop/dist/
+apps/desktop/.env
+apps/desktop/.env.local
+apps/desktop/.env.*.local
+apps/desktop/*.tsbuildinfo
+apps/desktop/src-tauri/target/
