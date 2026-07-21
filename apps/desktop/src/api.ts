@@ -18,6 +18,7 @@ import type {
   LlmServiceInfo,
   LlmServiceListResponse,
   LlmServiceTestResult,
+  LlmServiceType,
   MessageInfo,
   RoleTemplateDetail,
   RoleTemplateSummary,
@@ -163,6 +164,88 @@ type RawFrontendConfig = {
   models?: RawFrontendModelOption[];
   driver_types?: RawFrontendDriverType[];
   default_model?: string | null;
+  model_slots?: Array<{
+    key?: unknown;
+    value?: unknown;
+  }>;
+};
+type RawLlmContextConfig = {
+  context_window_tokens?: unknown;
+  reserve_output_tokens?: unknown;
+  compact_trigger_ratio?: unknown;
+  compact_summary_max_tokens?: unknown;
+};
+type RawLlmModelConfig = {
+  name?: unknown;
+  protocol?: unknown;
+  enabled?: unknown;
+  extra_headers?: unknown;
+  extra_params?: unknown;
+  context_config?: RawLlmContextConfig | null;
+};
+type RawLlmProviderConfig = {
+  name?: unknown;
+  type?: unknown;
+  api_key?: unknown;
+  enable?: unknown;
+  urls?: unknown;
+  models?: RawLlmModelConfig[];
+};
+type RawDefaultModels = {
+  primary?: unknown;
+  lite?: unknown;
+  advanced?: unknown;
+  vision?: unknown;
+};
+type RawLlmConfigResponse = {
+  llm_providers?: RawLlmProviderConfig[];
+  default_models?: RawDefaultModels;
+  context_config?: RawLlmContextConfig | null;
+};
+type MutableLlmContextConfig = {
+  context_window_tokens: number;
+  reserve_output_tokens: number;
+  compact_trigger_ratio: number;
+  compact_summary_max_tokens: number;
+};
+type MutableLlmModelConfig = {
+  name: string;
+  protocol: 'openai' | 'anthropic';
+  enabled: boolean;
+  extra_headers: Record<string, string>;
+  extra_params: Record<string, unknown>;
+  context_config?: MutableLlmContextConfig;
+};
+type MutableLlmProviderConfig = {
+  name: string;
+  type: string;
+  api_key: string;
+  enable: boolean;
+  urls: Record<string, string>;
+  models: MutableLlmModelConfig[];
+};
+type MutableDefaultModels = {
+  primary: string;
+  lite: string;
+  advanced: string;
+  vision: string;
+};
+type MutableLlmConfig = {
+  llm_providers: MutableLlmProviderConfig[];
+  default_models: MutableDefaultModels;
+  context_config: MutableLlmContextConfig;
+};
+type LlmServiceMapping = {
+  providerIndex: number;
+  modelIndex: number;
+  modelRef: string;
+};
+
+const DEFAULT_CONTEXT_CONFIG: MutableLlmContextConfig = {
+  context_window_tokens: 131072,
+  reserve_output_tokens: 16384,
+  compact_trigger_ratio: 0.85,
+  compact_summary_max_tokens: 6144,
 };
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8080').replace(/\/$/, '');
@@ -236,6 +319,14 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   }
   if (token && !isAuthExemptPath(path)) {
     headers.Authorization = `Bearer ${token}`;
+  }
+
+  if (path.startsWith('/config/llm_services/')) {
+    console.warn('[compat-probe]', JSON.stringify({
+      event: 'legacy-llm-endpoint-request',
+      method,
+      path,
+    }));
   }
 
   try {
@@ -329,6 +420,15 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
         statusCode: status,
         detail: errorDetail,
       });
+      if (path.startsWith('/config/llm_services/')) {
+        console.warn('[compat-probe]', JSON.stringify({
+          event: 'legacy-llm-endpoint-failed',
+          method,
+          path,
+          status,
+          detail: errorDetail,
+        }));
+      }
       throw new Error(
         errorDetail
           ? `Request failed: ${status} ${errorDetail}`
@@ -374,6 +474,200 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
 function isAuthExemptPath(path: string): boolean {
   const exemptPaths = ['/system/status.json'];
   return exemptPaths.includes(path);
+}
+
+function normalizeStringRecord(value: unknown): Record<string, string> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {};
+  }
+
+  const result: Record<string, string> = {};
+  for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
+    if (typeof item === 'string') {
+      result[key] = item;
+    }
+  }
+  return result;
+}
+
+function normalizeUnknownRecord(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {};
+  }
+  return { ...(value as Record<string, unknown>) };
+}
+
+function normalizeContextConfig(
+  value: RawLlmContextConfig | MutableLlmContextConfig | null | undefined,
+  fallback: MutableLlmContextConfig = DEFAULT_CONTEXT_CONFIG,
+): MutableLlmContextConfig {
+  const raw = value ?? {};
+  return {
+    context_window_tokens: typeof raw.context_window_tokens === 'number'
+      ? raw.context_window_tokens
+      : fallback.context_window_tokens,
+    reserve_output_tokens: typeof raw.reserve_output_tokens === 'number'
+      ? raw.reserve_output_tokens
+      : fallback.reserve_output_tokens,
+    compact_trigger_ratio: typeof raw.compact_trigger_ratio === 'number'
+      ? raw.compact_trigger_ratio
+      : fallback.compact_trigger_ratio,
+    compact_summary_max_tokens: typeof raw.compact_summary_max_tokens === 'number'
+      ? raw.compact_summary_max_tokens
+      : fallback.compact_summary_max_tokens,
+  };
+}
+
+function normalizeProviderType(value: unknown): LlmServiceType {
+  const normalized = typeof value === 'string' ? value.trim() : '';
+  switch (normalized) {
+    case 'openai-compatible':
+    case 'openai':
+      return 'openai';
+    case 'anthropic':
+    case 'google':
+    case 'deepseek':
+    case 'aliyun':
+    case 'other':
+      return normalized;
+    default:
+      return 'other';
+  }
+}
+
+function toBackendProviderType(type: LlmServiceType | string | undefined): string {
+  const normalized = normalizeProviderType(type);
+  return normalized === 'openai' ? 'openai' : normalized;
+}
+
+function inferProtocolFromType(type: LlmServiceType | string | undefined): 'openai' | 'anthropic' {
+  return normalizeProviderType(type) === 'anthropic' ? 'anthropic' : 'openai';
+}
+
+function buildModelRef(modelName: string, providerName: string): string {
+  return `${modelName}@${providerName}`;
+}
+
+function parseModelRef(modelRef: string | null | undefined): { modelName: string; providerName: string } | null {
+  if (!modelRef || typeof modelRef !== 'string') {
+    return null;
+  }
+
+  const pivot = modelRef.lastIndexOf('@');
+  if (pivot <= 0 || pivot >= modelRef.length - 1) {
+    return null;
+  }
+
+  return {
+    modelName: modelRef.slice(0, pivot),
+    providerName: modelRef.slice(pivot + 1),
+  };
+}
+
+function getProviderBaseUrl(provider: MutableLlmProviderConfig, protocol: 'openai' | 'anthropic'): string {
+  const protocolUrl = provider.urls[protocol];
+  if (typeof protocolUrl === 'string' && protocolUrl.trim()) {
+    return protocolUrl.trim();
+  }
+
+  const firstUrl = Object.values(provider.urls).find((item) => item.trim());
+  return firstUrl ?? '';
+}
+
+function normalizeLlmConfig(data: RawLlmConfigResponse): MutableLlmConfig {
+  return {
+    llm_providers: (data.llm_providers ?? []).map((provider) => ({
+      name: typeof provider.name === 'string' ? provider.name : '',
+      type: typeof provider.type === 'string' ? provider.type : 'openai',
+      api_key: typeof provider.api_key === 'string' ? provider.api_key : '',
+      enable: provider.enable !== false,
+      urls: normalizeStringRecord(provider.urls),
+      models: (provider.models ?? []).map((model) => ({
+        name: typeof model.name === 'string' ? model.name : '',
+        protocol: model.protocol === 'anthropic' ? 'anthropic' : 'openai',
+        enabled: model.enabled !== false,
+        extra_headers: normalizeStringRecord(model.extra_headers),
+        extra_params: normalizeUnknownRecord(model.extra_params),
+        context_config: model.context_config
+          ? normalizeContextConfig(model.context_config)
+          : undefined,
+      })),
+    })),
+    default_models: {
+      primary: typeof data.default_models?.primary === 'string' ? data.default_models.primary : '',
+      lite: typeof data.default_models?.lite === 'string' ? data.default_models.lite : '',
+      advanced: typeof data.default_models?.advanced === 'string' ? data.default_models.advanced : '',
+      vision: typeof data.default_models?.vision === 'string' ? data.default_models.vision : '',
+    },
+    context_config: normalizeContextConfig(data.context_config),
+  };
+}
+
+async function fetchLlmConfig(): Promise<MutableLlmConfig> {
+  const data = await requestJson<RawLlmConfigResponse>('/config/llm.json');
+  return normalizeLlmConfig(data);
+}
+
+async function saveLlmConfig(config: MutableLlmConfig): Promise<void> {
+  await requestJson('/config/llm.json', {
+    method: 'POST',
+    body: JSON.stringify(config),
+  });
+}
+
+function listServicesFromLlmConfig(config: MutableLlmConfig): {
+  services: LlmServiceInfo[];
+  mapping: LlmServiceMapping[];
+  defaultServiceName: string | null;
+} {
+  const services: LlmServiceInfo[] = [];
+  const mapping: LlmServiceMapping[] = [];
+  const defaultProviderName = parseModelRef(config.default_models.primary)?.providerName ?? null;
+
+  config.llm_providers.forEach((provider, providerIndex) => {
+    provider.models.forEach((model, modelIndex) => {
+      const contextConfig = normalizeContextConfig(model.context_config, config.context_config);
+      services.push({
+        name: provider.name,
+        base_url: getProviderBaseUrl(provider, model.protocol),
+        api_key: provider.api_key,
+        type: normalizeProviderType(provider.type),
+        model: model.name,
+        enable: provider.enable && model.enabled,
+        extra_headers: { ...model.extra_headers },
+        provider_params: { ...model.extra_params },
+        context_window_tokens: contextConfig.context_window_tokens,
+        reserve_output_tokens: contextConfig.reserve_output_tokens,
+        compact_trigger_ratio: contextConfig.compact_trigger_ratio,
+        compact_summary_max_tokens: contextConfig.compact_summary_max_tokens,
+      });
+      mapping.push({
+        providerIndex,
+        modelIndex,
+        modelRef: buildModelRef(model.name, provider.name),
+      });
+    });
+  });
+
+  return {
+    services,
+    mapping,
+    defaultServiceName: defaultProviderName,
+  };
+}
+
+function replaceDefaultModelRef(defaultModels: MutableDefaultModels, fromRef: string, toRef: string): void {
+  if (defaultModels.primary === fromRef) defaultModels.primary = toRef;
+  if (defaultModels.lite === fromRef) defaultModels.lite = toRef;
+  if (defaultModels.advanced === fromRef) defaultModels.advanced = toRef;
+  if (defaultModels.vision === fromRef) defaultModels.vision = toRef;
+}
+
+function clearDefaultModelRef(defaultModels: MutableDefaultModels, targetRef: string): void {
+  if (defaultModels.primary === targetRef) defaultModels.primary = '';
+  if (defaultModels.lite === targetRef) defaultModels.lite = '';
+  if (defaultModels.advanced === targetRef) defaultModels.advanced = '';
+  if (defaultModels.vision === targetRef) defaultModels.vision = '';
 }
 
 function normalizeEntityI18n(value: unknown): EntityI18n {
@@ -752,19 +1046,32 @@ export async function deleteRoleTemplate(templateId: number): Promise<{ status: 
 }
 
 export async function getFrontendConfig(): Promise<FrontendConfig> {
-  const data = await requestJson<RawFrontendConfig>('/config/frontend.json');
+  const [data, llmConfig] = await Promise.all([
+    requestJson<RawFrontendConfig>('/config/frontend.json'),
+    fetchLlmConfig(),
+  ]);
+  if ((!Array.isArray(data.models) || data.models.length === 0) && Array.isArray(data.model_slots)) {
+    console.warn('[compat-probe]', JSON.stringify({
+      event: 'frontend-config-v2-shape-detected',
+      modelSlots: data.model_slots.map((item) => ({
+        key: typeof item?.key === 'string' ? item.key : '',
+        hasValue: typeof item?.value === 'string' && item.value.trim() !== '',
+      })),
+    }));
+  }
+  const { services } = listServicesFromLlmConfig(llmConfig);
   return {
-    models: (data.models ?? []).map((item) => ({
-      name: String(item.name ?? ''),
-      model: String(item.model ?? ''),
-      enabled: item.enabled !== false,
+    models: services.map((item) => ({
+      name: item.name,
+      model: item.model,
+      enabled: item.enable,
     })),
     driver_types: (data.driver_types ?? []).map((item) => ({
       name: String(item.name ?? ''),
       description: String(item.description ?? ''),
     })),
-    default_model: typeof data.default_model === 'string' && data.default_model.trim()
-      ? data.default_model
+    default_model: llmConfig.default_models.primary.trim()
+      ? llmConfig.default_models.primary
       : null,
   };
 }
@@ -1079,38 +1386,174 @@ export async function quickInit(payload: {
 }): Promise<{ status: string; message: string; detail?: { name: string; model: string } }> {
   return requestJson('/config/quick_init.json', {
     method: 'POST',
-    body: JSON.stringify(payload),
+    body: JSON.stringify({
+      base_url: payload.base_url,
+      api_key: payload.api_key,
+      model: payload.model,
+      type: toBackendProviderType(payload.type),
+      extra_params: payload.provider_params ?? {},
+    }),
   });
 }
 
 export async function getLlmServices(): Promise<LlmServiceListResponse> {
-  return requestJson<LlmServiceListResponse>('/config/llm_services/list.json');
+  const config = await fetchLlmConfig();
+  const { services, defaultServiceName } = listServicesFromLlmConfig(config);
+  return {
+    llm_services: services,
+    default_llm_server: defaultServiceName,
+  };
 }
 
 export async function createLlmService(payload: Partial<LlmServiceInfo>): Promise<{ status: string; index: number }> {
-  return requestJson('/config/llm_services/create.json', {
-    method: 'POST',
-    body: JSON.stringify(payload),
+  const config = await fetchLlmConfig();
+  const nextType = normalizeProviderType(payload.type);
+  const protocol = inferProtocolFromType(nextType);
+  const before = listServicesFromLlmConfig(config).services.length;
+  config.llm_providers.push({
+    name: String(payload.name ?? '').trim(),
+    type: toBackendProviderType(nextType),
+    api_key: String(payload.api_key ?? '').trim(),
+    enable: payload.enable !== false,
+    urls: payload.base_url ? { [protocol]: String(payload.base_url).trim() } : {},
+    models: [{
+      name: String(payload.model ?? '').trim(),
+      protocol,
+      enabled: payload.enable !== false,
+      extra_headers: normalizeStringRecord(payload.extra_headers),
+      extra_params: normalizeUnknownRecord(payload.provider_params),
+      context_config: {
+        context_window_tokens: typeof payload.context_window_tokens === 'number'
+          ? payload.context_window_tokens
+          : DEFAULT_CONTEXT_CONFIG.context_window_tokens,
+        reserve_output_tokens: typeof payload.reserve_output_tokens === 'number'
+          ? payload.reserve_output_tokens
+          : DEFAULT_CONTEXT_CONFIG.reserve_output_tokens,
+        compact_trigger_ratio: typeof payload.compact_trigger_ratio === 'number'
+          ? payload.compact_trigger_ratio
+          : DEFAULT_CONTEXT_CONFIG.compact_trigger_ratio,
+        compact_summary_max_tokens: typeof payload.compact_summary_max_tokens === 'number'
+          ? payload.compact_summary_max_tokens
+          : DEFAULT_CONTEXT_CONFIG.compact_summary_max_tokens,
+      },
+    }],
   });
+  await saveLlmConfig(config);
+  return { status: 'ok', index: before };
 }
 
 export async function modifyLlmService(index: number, payload: Record<string, unknown>): Promise<{ status: string }> {
-  return requestJson(`/config/llm_services/${index}/modify.json`, {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  });
+  const config = await fetchLlmConfig();
+  const { mapping, services } = listServicesFromLlmConfig(config);
+  const target = mapping[index];
+  const currentService = services[index];
+  if (!target || !currentService) {
+    throw new Error(`LLM service index out of range: ${index}`);
+  }
+
+  const provider = config.llm_providers[target.providerIndex];
+  const model = provider?.models[target.modelIndex];
+  if (!provider || !model) {
+    throw new Error(`LLM service mapping not found: ${index}`);
+  }
+
+  const oldModelRef = target.modelRef;
+  const nextType = payload.type !== undefined ? normalizeProviderType(payload.type) : normalizeProviderType(provider.type);
+  const nextProtocol = inferProtocolFromType(nextType);
+  const nextBaseUrl = typeof payload.base_url === 'string'
+    ? payload.base_url.trim()
+    : getProviderBaseUrl(provider, model.protocol);
+
+  if (typeof payload.api_key === 'string') {
+    provider.api_key = payload.api_key.trim();
+  }
+  provider.type = toBackendProviderType(nextType);
+  if (typeof payload.enable === 'boolean') {
+    provider.enable = payload.enable;
+    model.enabled = payload.enable;
+  }
+
+  provider.urls = {
+    ...provider.urls,
+    [nextProtocol]: nextBaseUrl,
+  };
+  model.protocol = nextProtocol;
+
+  if (typeof payload.model === 'string') {
+    model.name = payload.model.trim();
+  }
+  if (payload.extra_headers !== undefined) {
+    model.extra_headers = normalizeStringRecord(payload.extra_headers);
+  }
+  if (payload.provider_params !== undefined) {
+    model.extra_params = normalizeUnknownRecord(payload.provider_params);
+  }
+
+  const nextContextConfig = normalizeContextConfig(model.context_config, config.context_config);
+  if (typeof payload.context_window_tokens === 'number') {
+    nextContextConfig.context_window_tokens = payload.context_window_tokens;
+  }
+  if (typeof payload.reserve_output_tokens === 'number') {
+    nextContextConfig.reserve_output_tokens = payload.reserve_output_tokens;
+  }
+  if (typeof payload.compact_trigger_ratio === 'number') {
+    nextContextConfig.compact_trigger_ratio = payload.compact_trigger_ratio;
+  }
+  if (typeof payload.compact_summary_max_tokens === 'number') {
+    nextContextConfig.compact_summary_max_tokens = payload.compact_summary_max_tokens;
+  }
+  model.context_config = nextContextConfig;
+
+  const newModelRef = buildModelRef(model.name, provider.name);
+  if (newModelRef !== oldModelRef) {
+    replaceDefaultModelRef(config.default_models, oldModelRef, newModelRef);
+  }
+
+  await saveLlmConfig(config);
+  return { status: 'ok' };
 }
 
 export async function deleteLlmService(index: number): Promise<{ status: string; deleted_name: string }> {
-  return requestJson(`/config/llm_services/${index}/delete.json`, {
-    method: 'POST',
-  });
+  const config = await fetchLlmConfig();
+  const { mapping } = listServicesFromLlmConfig(config);
+  const target = mapping[index];
+  if (!target) {
+    throw new Error(`LLM service index out of range: ${index}`);
+  }
+
+  const provider = config.llm_providers[target.providerIndex];
+  if (!provider) {
+    throw new Error(`LLM provider mapping not found: ${index}`);
+  }
+
+  provider.models.splice(target.modelIndex, 1);
+  clearDefaultModelRef(config.default_models, target.modelRef);
+  if (provider.models.length === 0) {
+    config.llm_providers.splice(target.providerIndex, 1);
+  }
+
+  await saveLlmConfig(config);
+  return {
+    status: 'ok',
+    deleted_name: provider.name,
+  };
 }
 
 export async function setDefaultLlmService(index: number): Promise<{ status: string; default_llm_server: string }> {
-  return requestJson(`/config/llm_services/${index}/set_default.json`, {
-    method: 'POST',
-  });
+  const config = await fetchLlmConfig();
+  const { mapping, services } = listServicesFromLlmConfig(config);
+  const target = mapping[index];
+  const service = services[index];
+  if (!target || !service) {
+    throw new Error(`LLM service index out of range: ${index}`);
+  }
+
+  config.default_models.primary = target.modelRef;
+  await saveLlmConfig(config);
+  return {
+    status: 'ok',
+    default_llm_server: service.name,
+  };
 }
 
 export async function testLlmService(payload: {
@@ -1123,9 +1566,30 @@ export async function testLlmService(payload: {
   extra_headers?: Record<string, string>;
   provider_params?: Record<string, unknown>;
 }): Promise<LlmServiceTestResult> {
-  return requestJson('/config/llm_services/test.json', {
+  const protocol = payload.type === 'anthropic' ? 'anthropic' : 'openai';
+  const provider = {
+    name: payload.mode === 'saved' ? `saved-${payload.index ?? 0}` : 'temp-provider',
+    type: payload.type === 'openai-compatible' ? 'openai' : (payload.type ?? 'openai'),
+    api_key: payload.api_key ?? '',
+    enable: true,
+    urls: payload.base_url ? { [protocol]: payload.base_url } : {},
+    models: [],
+  };
+  const model = {
+    name: payload.model ?? '',
+    protocol,
+    enabled: true,
+    extra_params: payload.provider_params ?? {},
+    extra_headers: payload.extra_headers ?? {},
+  };
+
+  return requestJson('/config/llm_test.json', {
     method: 'POST',
-    body: JSON.stringify(payload),
+    body: JSON.stringify({
+      provider,
+      model,
+      protocol,
+    }),
   });
 }
 

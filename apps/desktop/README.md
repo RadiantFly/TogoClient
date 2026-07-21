@@ -13,8 +13,8 @@ This directory contains the current desktop client for `TogoClient`.
 
 ## Current scope
 
-The current implementation targets parity with `/Volumes/Extend/git/TogoSpace/frontend`
-and adds desktop-only capabilities on top:
+The current implementation builds a desktop-native client on top of the
+`TogoSpace` backend and adds desktop-only capabilities on top:
 
 - console chat and task views
 - settings sections for teams, roles, models, skills, and maintenance
@@ -44,6 +44,14 @@ npm run tauri dev
 ```
 
 ## Build
+
+From the repository root, the recommended packaging command is:
+
+```bash
+./scripts/build-desktop.sh
+```
+
+If you want to build from inside `apps/desktop`, use the following steps.
 
 If `cargo` is not already available on the machine, install Rust with the
 `rsproxy.cn` mirror first:

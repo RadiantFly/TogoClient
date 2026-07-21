@@ -5,10 +5,12 @@ import { testLlmService, quickInit } from '../../api';
 import type { LlmServiceTestResult, LlmServiceType } from '../../types';
 
 const SERVICE_TYPES: { value: LlmServiceType; label: string }[] = [
-  { value: 'openai-compatible', label: 'OpenAI Compatible' },
+  { value: 'openai', label: 'OpenAI Compatible' },
   { value: 'anthropic', label: 'Anthropic' },
   { value: 'google', label: 'Google (Gemini)' },
   { value: 'deepseek', label: 'DeepSeek' },
+  { value: 'aliyun', label: 'Aliyun (DashScope)' },
+  { value: 'other', label: 'Other Compatible' },
 ];
 
 const PROVIDER_PARAMS_PLACEHOLDER = '{\n  "reasoning_effort": "high"\n}';
@@ -24,7 +26,7 @@ const baseUrl = ref('');
 const apiKey = ref('');
 const model = ref('');
 const providerParams = ref('');
-const serviceType = ref<LlmServiceType>('openai-compatible');
+const serviceType = ref<LlmServiceType>('openai');
 const apiKeyVisible = ref(false);
 const advancedOpen = ref(false);
 const isTesting = ref(false);

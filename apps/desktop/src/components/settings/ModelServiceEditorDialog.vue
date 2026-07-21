@@ -37,10 +37,12 @@ type OpenEditPayload = {
 };
 
 const SERVICE_TYPES: { value: LlmServiceType; label: string }[] = [
-  { value: 'openai-compatible', label: 'OpenAI Compatible' },
+  { value: 'openai', label: 'OpenAI Compatible' },
   { value: 'anthropic', label: 'Anthropic' },
   { value: 'google', label: 'Google (Gemini)' },
   { value: 'deepseek', label: 'DeepSeek' },
+  { value: 'aliyun', label: 'Aliyun (DashScope)' },
+  { value: 'other', label: 'Other Compatible' },
 ];
 
 const PROVIDER_PARAMS_PLACEHOLDER = '{\n  "reasoning_effort": "high"\n}';
@@ -70,7 +72,7 @@ const form = ref({
   name: '',
   base_url: '',
   api_key: '',
-  type: 'openai-compatible' as LlmServiceType,
+  type: 'openai' as LlmServiceType,
   model: '',
   enable: true,
   extra_headers: '',
@@ -205,7 +207,7 @@ function resetForm(service?: LlmServiceInfo | null): void {
     name: service?.name ?? '',
     base_url: service?.base_url ?? '',
     api_key: service?.api_key ?? '',
-    type: service?.type ?? 'openai-compatible',
+    type: service?.type ?? 'openai',
     model: service?.model ?? 'qwen-plus',
     enable: service?.enable ?? true,
     extra_headers: service ? serializeHeaders(service.extra_headers) : '',

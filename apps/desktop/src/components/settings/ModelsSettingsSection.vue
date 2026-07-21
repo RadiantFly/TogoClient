@@ -27,7 +27,7 @@ const editorDialogRef = ref<InstanceType<typeof ModelServiceEditorDialog> | null
 
 function formatServiceType(type: LlmServiceInfo['type']): string {
   switch (type) {
-    case 'openai-compatible':
+    case 'openai':
       return 'OpenAI Compatible';
     case 'anthropic':
       return 'Anthropic';
@@ -35,6 +35,10 @@ function formatServiceType(type: LlmServiceInfo['type']): string {
       return 'Google';
     case 'deepseek':
       return 'DeepSeek';
+    case 'aliyun':
+      return 'Aliyun';
+    case 'other':
+      return 'Other Compatible';
     default:
       return type;
   }

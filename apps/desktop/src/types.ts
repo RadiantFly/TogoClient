@@ -318,7 +318,7 @@ export interface RoleTemplateDetail extends RoleTemplateSummary {
   soul: string;
 }
 
-export type LlmServiceType = 'openai-compatible' | 'anthropic' | 'google' | 'deepseek';
+export type LlmServiceType = 'openai' | 'anthropic' | 'google' | 'deepseek' | 'aliyun' | 'other';
 
 export interface LlmServiceInfo {
   name: string;

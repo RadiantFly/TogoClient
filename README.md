@@ -59,6 +59,12 @@
 ./scripts/dev-desktop.sh
 ```
 
+### 3. 打包桌面端
+
+```bash
+./scripts/build-desktop.sh
+```
+
 如果你希望单独进入桌面端目录开发，也可以参考：
 
 ```bash
